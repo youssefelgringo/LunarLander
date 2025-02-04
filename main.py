@@ -17,11 +17,12 @@ class Ship:
         self.rect = pygame.Rect(self.x, self.y, SHIP_WIDTH, SHIP_HEIGHT)
 
     def update(self):
-        self.rect.center = (self.x + SHIP_WIDTH//2, self.y + SHIP_HEIGHT//2)
+        self.rect.center = (self.x + SHIP_WIDTH // 2, self.y + SHIP_HEIGHT // 2)
 
 def draw_mountain_map(win, map_points, scroll_x):
     for i in range(len(map_points) - 1):
-        pygame.draw.line(win, WHITE, (map_points[i][0] + scroll_x, map_points[i][1]),
+        pygame.draw.line(win, WHITE,
+                         (map_points[i][0] + scroll_x, map_points[i][1]),
                          (map_points[i + 1][0] + scroll_x, map_points[i + 1][1]), 2)
 
 def check_collision(rect, map_points, scroll_x):
@@ -79,7 +80,7 @@ def main():
             ship.update()
 
             # Gestion du défilement
-            scroll_x = WIDTH//2 - ship.rect.centerx
+            scroll_x = WIDTH // 2 - ship.rect.centerx
 
             # Collision et score
             collision, map_y = check_collision(ship.rect, map_points, scroll_x)
@@ -110,10 +111,11 @@ def main():
             win.blit(overlay, (0, 0))
 
             font = pygame.font.SysFont("comicsans", 50)
-            win.blit(font.render(f"Score: {landing_score}/100", True, GREEN), (WIDTH//2-100, HEIGHT//2-50))
-            win.blit(font.render("Appuyez sur ESPACE pour rejouer", True, GREEN), (WIDTH//2-250, HEIGHT//2+50))
+            win.blit(font.render(f"Score: {landing_score}/100", True, GREEN), (WIDTH // 2 - 100, HEIGHT // 2 - 50))
+            win.blit(font.render("Appuyez sur ESPACE pour rejouer", True, GREEN), (WIDTH // 2 - 250, HEIGHT // 2 + 50))
 
             if pygame.key.get_pressed()[pygame.K_SPACE]:
+                win = pygame.display.set_mode((WIDTH, HEIGHT))  # Réinitialise la fenêtre
                 ship.reset()
                 game_over = False
                 scroll_x = 0
