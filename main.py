@@ -15,19 +15,24 @@ class Ship:
         self.fuel = INITIAL_FUEL
         self.angle = 0
         self.rect = pygame.Rect(self.x, self.y, SHIP_WIDTH, SHIP_HEIGHT)
-        
+
     def update(self):
         self.rect.center = (self.x + SHIP_WIDTH//2, self.y + SHIP_HEIGHT//2)
+
+def draw_mountain_map(win, map_points, scroll_x):
+    for i in range(len(map_points) - 1):
+        pygame.draw.line(win, WHITE, (map_points[i][0] + scroll_x, map_points[i][1]),
+                         (map_points[i + 1][0] + scroll_x, map_points[i + 1][1]), 2)
 
 def main():
     pygame.init()
     win = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Lunar Lander - Score à 0 en cas de Crash")
-    
+
     # Initialisation des ressources
     rocket_img = pygame.transform.scale(pygame.image.load(ROCKET_IMG), (SHIP_WIDTH, SHIP_HEIGHT))
     flame_img = pygame.transform.scale(pygame.image.load(FLAME_IMG), (25, 40))
-    
+
     ship = Ship()
     map_points = add_flat_surfaces(generate_complex_map(MAP_WIDTH, HEIGHT), FLAT_WIDTH)
     scroll_x = 0
@@ -36,7 +41,7 @@ def main():
 
     clock = pygame.time.Clock()
     running = True
-    
+
     while running:
         clock.tick(60)
         win.fill(BLACK)
@@ -47,13 +52,13 @@ def main():
 
         if not game_over:
             keys = pygame.key.get_pressed()
-            
+
             # Gestion des contrôles
             if keys[pygame.K_UP] and ship.fuel > 0:
                 ship.velocity_x -= THRUST * math.sin(math.radians(ship.angle))
                 ship.velocity_y -= THRUST * math.cos(math.radians(ship.angle))
                 ship.fuel -= 1
-            
+
             if keys[pygame.K_LEFT]:
                 ship.angle += ROTATION_SPEED
             if keys[pygame.K_RIGHT]:
@@ -66,10 +71,7 @@ def main():
             ship.update()
 
             # Gestion du défilement
-            if ship.rect.centerx < WIDTH//4:
-                scroll_x -= 2
-            elif ship.rect.centerx > 3*WIDTH//4:
-                scroll_x += 2
+            scroll_x = WIDTH//2 - ship.rect.centerx
 
             # Collision et score
             collision, map_y = check_collision(ship.rect, map_points, scroll_x)
@@ -98,11 +100,11 @@ def main():
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             overlay.fill(TRANSPARENT_BLACK)
             win.blit(overlay, (0, 0))
-            
+
             font = pygame.font.SysFont("comicsans", 50)
             win.blit(font.render(f"Score: {landing_score}/100", True, GREEN), (WIDTH//2-100, HEIGHT//2-50))
             win.blit(font.render("Appuyez sur ESPACE pour rejouer", True, GREEN), (WIDTH//2-250, HEIGHT//2+50))
-            
+
             if pygame.key.get_pressed()[pygame.K_SPACE]:
                 ship.reset()
                 game_over = False
