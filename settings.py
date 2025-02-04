@@ -8,6 +8,8 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 TRANSPARENT_BLACK = (0, 0, 0, 128)
 
+# test
+
 # Paramètres du vaisseau
 SHIP_WIDTH, SHIP_HEIGHT = 25, 35
 INITIAL_SHIP_X = WIDTH // 2 - SHIP_WIDTH // 2
