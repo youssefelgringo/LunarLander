@@ -24,6 +24,14 @@ def draw_mountain_map(win, map_points, scroll_x):
         pygame.draw.line(win, WHITE, (map_points[i][0] + scroll_x, map_points[i][1]),
                          (map_points[i + 1][0] + scroll_x, map_points[i + 1][1]), 2)
 
+def check_collision(rect, map_points, scroll_x):
+    for i in range(len(map_points) - 1):
+        p1 = (map_points[i][0] + scroll_x, map_points[i][1])
+        p2 = (map_points[i + 1][0] + scroll_x, map_points[i + 1][1])
+        if rect.clipline(p1, p2):
+            return True, p1[1]
+    return False, None
+
 def main():
     pygame.init()
     win = pygame.display.set_mode((WIDTH, HEIGHT))
