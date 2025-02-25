@@ -35,17 +35,16 @@ def check_collision(rect, map_points, scroll_x):
 
 def main():
     pygame.init()
-    # Initialisation de la fenêtre redimensionnable
     screen_width, screen_height = WIDTH, HEIGHT
     win = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
-    pygame.display.set_caption("Lunar Lander - Carte infinie")
+    pygame.display.set_caption("Lunar Lander - Carte infinie et caméra centrée sur la fusée")
 
     # Chargement et redimensionnement des images
     rocket_img = pygame.transform.scale(pygame.image.load(ROCKET_IMG), (SHIP_WIDTH, SHIP_HEIGHT))
     flame_img = pygame.transform.scale(pygame.image.load(FLAME_IMG), (25, 40))
 
     ship = Ship()
-    # Génère une carte initiale étendue : de -screen_width à 2*screen_width
+    # Initialisation de la carte : de -screen_width à 2*screen_width
     map_start = -screen_width
     map_end = screen_width * 2
     map_points = []
@@ -59,7 +58,6 @@ def main():
     clock = pygame.time.Clock()
     running = True
 
-    # Préparation des polices
     fuel_font = pygame.font.SysFont("comicsans", 30)
     end_font = pygame.font.SysFont("comicsans", 50)
 
@@ -77,7 +75,7 @@ def main():
             elif event.type == pygame.VIDEORESIZE:
                 screen_width, screen_height = event.w, event.h
                 win = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
-                # Optionnel : on peut aussi régénérer la carte avec la nouvelle taille
+                # Optionnel : adapter la carte en fonction de la nouvelle taille
 
         if not game_over:
             keys = pygame.key.get_pressed()
@@ -93,24 +91,26 @@ def main():
             if keys[pygame.K_RIGHT]:
                 ship.angle -= ROTATION_SPEED
 
-            # Gravité et mise à jour de la position
             ship.velocity_y += GRAVITY
             ship.x += ship.velocity_x
             ship.y += ship.velocity_y
             ship.update()
 
-            # Gestion du défilement centré sur la fusée
+            # Calcul du décalage pour centrer la caméra sur la fusée
             scroll_x = screen_width // 2 - ship.rect.centerx
 
-            # Vérifie si la fusée s'approche du bord droit et étend la carte
-            if ship.x > map_end - extend_threshold:
+            # Calcul des bords de la vue en fonction de la caméra
+            view_left = ship.rect.centerx - screen_width // 2
+            view_right = ship.rect.centerx + screen_width // 2
+
+            # Génération de nouveaux segments si la vue approche des limites de la carte
+            if view_right > map_end - extend_threshold:
                 new_segment = generate_map_segment(map_end, map_end + segment_length, screen_height)
                 new_segment = add_flat_surfaces(new_segment, FLAT_WIDTH)
                 map_points.extend(new_segment)
                 map_end += segment_length
 
-            # Vérifie si la fusée s'approche du bord gauche et étend la carte vers la gauche
-            if ship.x < map_start + extend_threshold:
+            if view_left < map_start + extend_threshold:
                 new_segment = generate_map_segment(map_start - segment_length, map_start, screen_height)
                 new_segment = add_flat_surfaces(new_segment, FLAT_WIDTH)
                 map_points = new_segment + map_points
@@ -122,26 +122,25 @@ def main():
                 landing_score = calculate_landing_score(ship.velocity_y, ship.angle)
                 game_over = True
 
-            # Affichage de la carte
             draw_mountain_map(win, map_points, scroll_x)
 
-            # Affichage de la fusée
+            # Dessin de la fusée en tenant compte du décalage de la caméra
             rotated_rocket = pygame.transform.rotate(rocket_img, ship.angle)
-            win.blit(rotated_rocket, rotated_rocket.get_rect(center=ship.rect.center))
+            # On centre la fusée sur la position calculée par la caméra
+            rocket_draw_rect = rotated_rocket.get_rect(center=(ship.rect.centerx + scroll_x, ship.rect.centery))
+            win.blit(rotated_rocket, rocket_draw_rect)
 
-            # Positionnement amélioré de la flamme
+            # Placement amélioré de la flamme (avec le même décalage)
             if keys[pygame.K_UP] and ship.fuel > 0:
                 offset_distance = SHIP_HEIGHT // 2 + 10
                 offset_vector = pygame.math.Vector2(0, offset_distance).rotate(-ship.angle)
-                flame_position = (ship.rect.centerx + offset_vector.x, ship.rect.centery + offset_vector.y)
+                flame_position = (ship.rect.centerx + scroll_x + offset_vector.x, ship.rect.centery + offset_vector.y)
                 rotated_flame = pygame.transform.rotate(flame_img, ship.angle)
                 win.blit(rotated_flame, rotated_flame.get_rect(center=flame_position))
 
-            # Affichage du carburant
             fuel_text = fuel_font.render(f"Carburant: {ship.fuel}", True, RED)
             win.blit(fuel_text, (10, 10))
         else:
-            # Écran de fin avec overlay semi-transparent
             overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
             overlay.fill(TRANSPARENT_BLACK)
             win.blit(overlay, (0, 0))

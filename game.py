@@ -4,7 +4,7 @@ import pygame
 from settings import *
 
 def generate_map_segment(start_x, end_x, height, spacing=50):
-    # Génère des points de contrôle pour un relief de montagne réaliste sur un segment donné
+    # Génère des points de contrôle pour un relief de montagne réaliste sur le segment [start_x, end_x]
     control_points = []
     for x in range(start_x, end_x + spacing, spacing):
         # Les montagnes se situent dans la partie basse de l'écran
@@ -21,9 +21,9 @@ def generate_map_segment(start_x, end_x, height, spacing=50):
     return segment_points
 
 def add_flat_surfaces(map_points, flat_width):
-    # Ajoute plus fréquemment des zones d'atterrissage
+    # Ajoute des zones plates plus fréquemment (tous les 150 points) pour faciliter les atterrissages
     for i in range(len(map_points) - flat_width):
-        if i % 150 == 0:  # Tous les 150 points, créer une zone plate
+        if i % 150 == 0:
             y = map_points[i][1]
             for j in range(flat_width):
                 map_points[i + j] = (map_points[i + j][0], y)
