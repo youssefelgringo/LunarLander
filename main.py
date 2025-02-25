@@ -63,7 +63,7 @@ def main():
     # États possibles : "menu", "playing", "game_over"
     state = "menu"
 
-    # Initialisation des variables de jeu dans le scope de main (elles seront utilisées via nonlocal dans init_game)
+    # Initialisation des variables de jeu dans le scope de main
     ship = None
     map_points = []
     map_start = 0
@@ -181,8 +181,16 @@ def main():
                 rotated_flame = pygame.transform.rotate(flame_img, ship.angle)
                 win.blit(rotated_flame, rotated_flame.get_rect(center=flame_position))
 
+            # Affichage du carburant et de la vitesse (en km/h)
             fuel_text = fuel_font.render(f"Carburant: {ship.fuel}", True, RED)
             win.blit(fuel_text, (10, 10))
+            # Calcul de la vitesse en km/h
+            speed_pixels = (ship.velocity_x**2 + ship.velocity_y**2) ** 0.5
+            # Facteur de conversion réduit : 1 pixel/frame correspond désormais à 100 km/h
+            speed_km_h = speed_pixels * 100
+            speed_text = fuel_font.render(f"Vitesse: {int(speed_km_h)} km/h", True, WHITE)
+            win.blit(speed_text, (10, 40))
+
             pygame.display.update()
 
         elif state == "game_over":
