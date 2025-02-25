@@ -25,10 +25,11 @@ def draw_mountain_map(win, map_points, scroll_x):
                          (map_points[i][0] + scroll_x, map_points[i][1]),
                          (map_points[i + 1][0] + scroll_x, map_points[i + 1][1]), 2)
 
-def check_collision(rect, map_points, scroll_x):
+# Fonction modifiée : la détection des collisions se fait en coordonnées monde, sans appliquer le scroll_x
+def check_collision(rect, map_points):
     for i in range(len(map_points) - 1):
-        p1 = (map_points[i][0] + scroll_x, map_points[i][1])
-        p2 = (map_points[i + 1][0] + scroll_x, map_points[i + 1][1])
+        p1 = map_points[i]
+        p2 = map_points[i + 1]
         if rect.clipline(p1, p2):
             return True, p1[1]
     return False, None
@@ -116,8 +117,8 @@ def main():
                 map_points = new_segment + map_points
                 map_start -= segment_length
 
-            # Gestion des collisions
-            collision, map_y = check_collision(ship.rect, map_points, scroll_x)
+            # Gestion des collisions (appel modifié sans scroll_x)
+            collision, map_y = check_collision(ship.rect, map_points)
             if collision:
                 landing_score = calculate_landing_score(ship.velocity_y, ship.angle)
                 game_over = True
