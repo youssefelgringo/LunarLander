@@ -35,7 +35,9 @@ def check_collision(rect, map_points, scroll_x):
 
 def main():
     pygame.init()
-    win = pygame.display.set_mode((WIDTH, HEIGHT))
+    # Variables pour la taille de la fenêtre qui s'adaptent au redimensionnement
+    screen_width, screen_height = WIDTH, HEIGHT
+    win = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
     pygame.display.set_caption("Lunar Lander - Score à 0 en cas de Crash")
 
     # Initialisation des ressources
@@ -43,13 +45,18 @@ def main():
     flame_img = pygame.transform.scale(pygame.image.load(FLAME_IMG), (25, 40))
 
     ship = Ship()
-    map_points = add_flat_surfaces(generate_complex_map(MAP_WIDTH, HEIGHT), FLAT_WIDTH)
+    # On régénère la map en fonction de la taille actuelle de la fenêtre
+    map_points = add_flat_surfaces(generate_complex_map(screen_width * 3, screen_height), FLAT_WIDTH)
     scroll_x = 0
     game_over = False
     landing_score = 0
 
     clock = pygame.time.Clock()
     running = True
+
+    # Préparation des polices
+    fuel_font = pygame.font.SysFont("comicsans", 30)
+    end_font = pygame.font.SysFont("comicsans", 50)
 
     while running:
         clock.tick(60)
@@ -58,6 +65,11 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.VIDEORESIZE:
+                screen_width, screen_height = event.w, event.h
+                win = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
+                # Optionnel : régénérer la map avec la nouvelle taille si besoin
+                map_points = add_flat_surfaces(generate_complex_map(screen_width * 3, screen_height), FLAT_WIDTH)
 
         if not game_over:
             keys = pygame.key.get_pressed()
@@ -79,8 +91,8 @@ def main():
             ship.y += ship.velocity_y
             ship.update()
 
-            # Gestion du défilement
-            scroll_x = WIDTH // 2 - ship.rect.centerx
+            # Gestion du défilement centré sur le vaisseau
+            scroll_x = screen_width // 2 - ship.rect.centerx
 
             # Collision et score
             collision, map_y = check_collision(ship.rect, map_points, scroll_x)
@@ -95,27 +107,48 @@ def main():
             rotated_rocket = pygame.transform.rotate(rocket_img, ship.angle)
             win.blit(rotated_rocket, rotated_rocket.get_rect(center=ship.rect.center))
 
-            # Dessin de la flamme
+            # Placement amélioré de la flamme :
             if keys[pygame.K_UP] and ship.fuel > 0:
-                flame_pos = rotated_rocket.get_rect(center=ship.rect.center)
-                flame_pos.y += 35
-                win.blit(pygame.transform.rotate(flame_img, ship.angle), flame_pos)
+                # Calcule un décalage depuis le centre du vaisseau, aligné dans la direction opposée à la poussée
+                offset_distance = SHIP_HEIGHT // 2 + 10  # 10 pixels supplémentaires pour que la flamme déborde
+                offset_vector = pygame.math.Vector2(0, offset_distance).rotate(-ship.angle)
+                flame_position = (ship.rect.centerx + offset_vector.x, ship.rect.centery + offset_vector.y)
+                rotated_flame = pygame.transform.rotate(flame_img, ship.angle)
+                win.blit(rotated_flame, rotated_flame.get_rect(center=flame_position))
 
             # Affichage du carburant
-            font = pygame.font.SysFont("comicsans", 30)
-            win.blit(font.render(f"Carburant: {ship.fuel}", True, RED), (10, 10))
+            fuel_text = fuel_font.render(f"Carburant: {ship.fuel}", True, RED)
+            win.blit(fuel_text, (10, 10))
         else:
-            # Écran de fin
-            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            # Écran de fin avec overlay semi-transparent
+            overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
             overlay.fill(TRANSPARENT_BLACK)
             win.blit(overlay, (0, 0))
 
-            font = pygame.font.SysFont("comicsans", 50)
-            win.blit(font.render(f"Score: {landing_score}/100", True, GREEN), (WIDTH // 2 - 100, HEIGHT // 2 - 50))
-            win.blit(font.render("Appuyez sur ESPACE pour rejouer", True, GREEN), (WIDTH // 2 - 250, HEIGHT // 2 + 50))
+            # Préparer les textes et centrer leur affichage
+            score_text = end_font.render(f"Score: {landing_score}/100", True, GREEN)
+            replay_text = end_font.render("Appuyez sur ESPACE pour rejouer", True, GREEN)
+            score_rect = score_text.get_rect(center=(screen_width // 2, screen_height // 2 - 50))
+            replay_rect = replay_text.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
+
+            # Ajout d'une ombre légère pour embellir le rendu
+            shadow_offset = 2
+            score_shadow = end_font.render(f"Score: {landing_score}/100", True, BLACK)
+            replay_shadow = end_font.render("Appuyez sur ESPACE pour rejouer", True, BLACK)
+            score_shadow_rect = score_rect.copy()
+            replay_shadow_rect = replay_rect.copy()
+            score_shadow_rect.x += shadow_offset
+            score_shadow_rect.y += shadow_offset
+            replay_shadow_rect.x += shadow_offset
+            replay_shadow_rect.y += shadow_offset
+
+            win.blit(score_shadow, score_shadow_rect)
+            win.blit(score_text, score_rect)
+            win.blit(replay_shadow, replay_shadow_rect)
+            win.blit(replay_text, replay_rect)
 
             if pygame.key.get_pressed()[pygame.K_SPACE]:
-                win = pygame.display.set_mode((WIDTH, HEIGHT))  # Réinitialise la fenêtre
+                # Réinitialisation du jeu
                 ship.reset()
                 game_over = False
                 scroll_x = 0

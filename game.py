@@ -3,17 +3,22 @@ import random
 import pygame
 from settings import *
 
-def generate_complex_map(width, height):
+def generate_complex_map(width, height, spacing=50):
+    # Génère des points de contrôle pour un relief de montagne réaliste
+    control_points = []
+    for x in range(0, width + spacing, spacing):
+        # Les montagnes occuperont la partie basse de l'écran
+        y = random.randint(int(height * 0.5), int(height * 0.9))
+        control_points.append((x, y))
+    # Interpole entre les points de contrôle pour obtenir une courbe lisse
     map_points = []
-    for x in range(width):
-        y = (
-            int(math.sin(x / 50) * 50) +
-            int(math.sin(x / 20) * 20) +
-            int(math.sin(x / 100) * 100) +
-            random.randint(-10, 10)
-        )
-        y = max(100, min(height - 100, y + height * 0.5))
-        map_points.append((x, y))
+    for i in range(len(control_points) - 1):
+        x1, y1 = control_points[i]
+        x2, y2 = control_points[i + 1]
+        for x in range(x1, x2):
+            t = (x - x1) / (x2 - x1)
+            y = int(y1 * (1 - t) + y2 * t) + random.randint(-3, 3)
+            map_points.append((x, y))
     return map_points
 
 def add_flat_surfaces(map_points, flat_width):
@@ -27,8 +32,8 @@ def add_flat_surfaces(map_points, flat_width):
 def draw_mountain_map(surface, map_points, scroll_x):
     for i in range(len(map_points) - 1):
         pygame.draw.line(surface, WHITE, 
-                        (map_points[i][0] - scroll_x, map_points[i][1]),
-                        (map_points[i + 1][0] - scroll_x, map_points[i + 1][1]), 2)
+                         (map_points[i][0] - scroll_x, map_points[i][1]),
+                         (map_points[i + 1][0] - scroll_x, map_points[i + 1][1]), 2)
 
 def check_collision(ship_rect, map_points, scroll_x):
     ship_bottom = ship_rect.bottom
