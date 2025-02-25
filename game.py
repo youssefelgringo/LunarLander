@@ -3,27 +3,27 @@ import random
 import pygame
 from settings import *
 
-def generate_complex_map(width, height, spacing=50):
-    # Génère des points de contrôle pour un relief de montagne réaliste
+def generate_map_segment(start_x, end_x, height, spacing=50):
+    # Génère des points de contrôle pour un relief de montagne réaliste sur un segment donné
     control_points = []
-    for x in range(0, width + spacing, spacing):
-        # Les montagnes occuperont la partie basse de l'écran
+    for x in range(start_x, end_x + spacing, spacing):
+        # Les montagnes se situent dans la partie basse de l'écran
         y = random.randint(int(height * 0.5), int(height * 0.9))
         control_points.append((x, y))
-    # Interpole entre les points de contrôle pour obtenir une courbe lisse
-    map_points = []
+    segment_points = []
     for i in range(len(control_points) - 1):
         x1, y1 = control_points[i]
         x2, y2 = control_points[i + 1]
         for x in range(x1, x2):
             t = (x - x1) / (x2 - x1)
             y = int(y1 * (1 - t) + y2 * t) + random.randint(-3, 3)
-            map_points.append((x, y))
-    return map_points
+            segment_points.append((x, y))
+    return segment_points
 
 def add_flat_surfaces(map_points, flat_width):
+    # Ajoute plus fréquemment des zones d'atterrissage
     for i in range(len(map_points) - flat_width):
-        if i % 300 == 0:
+        if i % 150 == 0:  # Tous les 150 points, créer une zone plate
             y = map_points[i][1]
             for j in range(flat_width):
                 map_points[i + j] = (map_points[i + j][0], y)

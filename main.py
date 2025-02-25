@@ -35,18 +35,23 @@ def check_collision(rect, map_points, scroll_x):
 
 def main():
     pygame.init()
-    # Variables pour la taille de la fenêtre qui s'adaptent au redimensionnement
+    # Initialisation de la fenêtre redimensionnable
     screen_width, screen_height = WIDTH, HEIGHT
     win = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
-    pygame.display.set_caption("Lunar Lander - Score à 0 en cas de Crash")
+    pygame.display.set_caption("Lunar Lander - Carte infinie")
 
-    # Initialisation des ressources
+    # Chargement et redimensionnement des images
     rocket_img = pygame.transform.scale(pygame.image.load(ROCKET_IMG), (SHIP_WIDTH, SHIP_HEIGHT))
     flame_img = pygame.transform.scale(pygame.image.load(FLAME_IMG), (25, 40))
 
     ship = Ship()
-    # On régénère la map en fonction de la taille actuelle de la fenêtre
-    map_points = add_flat_surfaces(generate_complex_map(screen_width * 3, screen_height), FLAT_WIDTH)
+    # Génère une carte initiale étendue : de -screen_width à 2*screen_width
+    map_start = -screen_width
+    map_end = screen_width * 2
+    map_points = []
+    map_points += generate_map_segment(map_start, map_end, screen_height)
+    map_points = add_flat_surfaces(map_points, FLAT_WIDTH)
+
     scroll_x = 0
     game_over = False
     landing_score = 0
@@ -58,6 +63,10 @@ def main():
     fuel_font = pygame.font.SysFont("comicsans", 30)
     end_font = pygame.font.SysFont("comicsans", 50)
 
+    # Paramètres pour l'extension de la carte
+    extend_threshold = 300
+    segment_length = screen_width * 2
+
     while running:
         clock.tick(60)
         win.fill(BLACK)
@@ -68,13 +77,12 @@ def main():
             elif event.type == pygame.VIDEORESIZE:
                 screen_width, screen_height = event.w, event.h
                 win = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
-                # Optionnel : régénérer la map avec la nouvelle taille si besoin
-                map_points = add_flat_surfaces(generate_complex_map(screen_width * 3, screen_height), FLAT_WIDTH)
+                # Optionnel : on peut aussi régénérer la carte avec la nouvelle taille
 
         if not game_over:
             keys = pygame.key.get_pressed()
 
-            # Gestion des contrôles
+            # Contrôles de la fusée
             if keys[pygame.K_UP] and ship.fuel > 0:
                 ship.velocity_x -= THRUST * math.sin(math.radians(ship.angle))
                 ship.velocity_y -= THRUST * math.cos(math.radians(ship.angle))
@@ -85,32 +93,45 @@ def main():
             if keys[pygame.K_RIGHT]:
                 ship.angle -= ROTATION_SPEED
 
-            # Application de la gravité
+            # Gravité et mise à jour de la position
             ship.velocity_y += GRAVITY
             ship.x += ship.velocity_x
             ship.y += ship.velocity_y
             ship.update()
 
-            # Gestion du défilement centré sur le vaisseau
+            # Gestion du défilement centré sur la fusée
             scroll_x = screen_width // 2 - ship.rect.centerx
 
-            # Collision et score
+            # Vérifie si la fusée s'approche du bord droit et étend la carte
+            if ship.x > map_end - extend_threshold:
+                new_segment = generate_map_segment(map_end, map_end + segment_length, screen_height)
+                new_segment = add_flat_surfaces(new_segment, FLAT_WIDTH)
+                map_points.extend(new_segment)
+                map_end += segment_length
+
+            # Vérifie si la fusée s'approche du bord gauche et étend la carte vers la gauche
+            if ship.x < map_start + extend_threshold:
+                new_segment = generate_map_segment(map_start - segment_length, map_start, screen_height)
+                new_segment = add_flat_surfaces(new_segment, FLAT_WIDTH)
+                map_points = new_segment + map_points
+                map_start -= segment_length
+
+            # Gestion des collisions
             collision, map_y = check_collision(ship.rect, map_points, scroll_x)
             if collision:
                 landing_score = calculate_landing_score(ship.velocity_y, ship.angle)
                 game_over = True
 
-            # Dessin de la map
+            # Affichage de la carte
             draw_mountain_map(win, map_points, scroll_x)
 
-            # Dessin du vaisseau
+            # Affichage de la fusée
             rotated_rocket = pygame.transform.rotate(rocket_img, ship.angle)
             win.blit(rotated_rocket, rotated_rocket.get_rect(center=ship.rect.center))
 
-            # Placement amélioré de la flamme :
+            # Positionnement amélioré de la flamme
             if keys[pygame.K_UP] and ship.fuel > 0:
-                # Calcule un décalage depuis le centre du vaisseau, aligné dans la direction opposée à la poussée
-                offset_distance = SHIP_HEIGHT // 2 + 10  # 10 pixels supplémentaires pour que la flamme déborde
+                offset_distance = SHIP_HEIGHT // 2 + 10
                 offset_vector = pygame.math.Vector2(0, offset_distance).rotate(-ship.angle)
                 flame_position = (ship.rect.centerx + offset_vector.x, ship.rect.centery + offset_vector.y)
                 rotated_flame = pygame.transform.rotate(flame_img, ship.angle)
@@ -125,13 +146,11 @@ def main():
             overlay.fill(TRANSPARENT_BLACK)
             win.blit(overlay, (0, 0))
 
-            # Préparer les textes et centrer leur affichage
             score_text = end_font.render(f"Score: {landing_score}/100", True, GREEN)
             replay_text = end_font.render("Appuyez sur ESPACE pour rejouer", True, GREEN)
             score_rect = score_text.get_rect(center=(screen_width // 2, screen_height // 2 - 50))
             replay_rect = replay_text.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
 
-            # Ajout d'une ombre légère pour embellir le rendu
             shadow_offset = 2
             score_shadow = end_font.render(f"Score: {landing_score}/100", True, BLACK)
             replay_shadow = end_font.render("Appuyez sur ESPACE pour rejouer", True, BLACK)
@@ -148,7 +167,6 @@ def main():
             win.blit(replay_text, replay_rect)
 
             if pygame.key.get_pressed()[pygame.K_SPACE]:
-                # Réinitialisation du jeu
                 ship.reset()
                 game_over = False
                 scroll_x = 0
