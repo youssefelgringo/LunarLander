@@ -284,7 +284,7 @@ def main():
 
             # Affichage de la flamme lors de l'accélération
             if keys[pygame.K_UP] and ship.fuel > 0:
-                offset_distance = SHIP_HEIGHT // 2 + 10
+                offset_distance = SHIP_HEIGHT // 2 + 19
                 offset_vector = pygame.math.Vector2(0, offset_distance).rotate(-ship.angle)
                 flame_position = (ship.rect.centerx + scroll_x + offset_vector.x, ship.rect.centery + offset_vector.y)
                 rotated_flame = pygame.transform.rotate(flame_img, ship.angle)
