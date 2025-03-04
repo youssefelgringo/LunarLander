@@ -6,8 +6,9 @@ from game import generate_map_segment, add_flat_surfaces, calculate_landing_scor
 
 # Couleurs personnalisées pour le nouveau design
 SKY_BLUE_DARK = (100, 149, 237)  # Bleu ciel un peu plus foncé
-BROWN = (139, 69, 19)            # Marron pour le "dirt"
-GRASS_GREEN = (34, 139, 34)      # Vert pour la simple couche en haut
+BROWN = (139, 69, 19)  # Couleur par défaut si la texture n'est pas chargée
+GRASS_GREEN = (34, 139, 34)  # Vert pour la couche supérieure
+
 
 def get_mountain_height(x, map_points):
     """
@@ -22,20 +23,45 @@ def get_mountain_height(x, map_points):
             return y1 + (y2 - y1) * t
     return HEIGHT  # Par défaut si hors limite
 
-def draw_mountain_map(win, map_points, scroll_x, screen_height):
-    """
-    Dessine la montagne avec un polygone marron (pour la terre)
-    et une simple couche verte (ligne) au sommet.
-    """
-    # Polygone principal marron
-    polygon_points = [(x + scroll_x, y) for (x, y) in map_points]
-    polygon_points.append((map_points[-1][0] + scroll_x, screen_height))
-    polygon_points.append((map_points[0][0] + scroll_x, screen_height))
-    pygame.draw.polygon(win, BROWN, polygon_points)
 
-    # Ligne verte au sommet
+def draw_textured_mountain_map(surface, map_points, scroll_x, screen_height, texture):
+    """
+    Dessine la montagne en utilisant une texture dupliquée (tiling) qui est ancrée aux coordonnées
+    du monde, de sorte que la texture reste collée à la montagne même lorsque la caméra se déplace.
+    """
+    # Créer une surface temporaire avec canal alpha
+    mountain_surface = pygame.Surface((surface.get_width(), screen_height), pygame.SRCALPHA)
+
+    tex_width, tex_height = texture.get_size()
+    # Calculer la coordonnée monde du bord gauche de l'écran
+    left_world = -scroll_x
+    # L'offset permet d'ancrer le tiling aux coordonnées du monde
+    offset_x = - (left_world % tex_width)
+
+    # Remplir la surface en dupliquant la texture à partir de l'offset calculé
+    for x in range(offset_x, surface.get_width(), tex_width):
+        for y in range(0, screen_height, tex_height):
+            mountain_surface.blit(texture, (x, y))
+
+    # Créer un masque correspondant à la forme de la montagne
+    mask_surface = pygame.Surface((surface.get_width(), screen_height), pygame.SRCALPHA)
+    # Décaler les points de la montagne selon scroll_x (conversion coordonnées monde -> écran)
+    poly_points = [(x + scroll_x, y) for (x, y) in map_points]
+    # Ajouter les coins en bas pour fermer le polygone
+    poly_points.append((map_points[-1][0] + scroll_x, screen_height))
+    poly_points.append((map_points[0][0] + scroll_x, screen_height))
+    pygame.draw.polygon(mask_surface, (255, 255, 255), poly_points)
+
+    # Appliquer le masque sur la surface texturée pour ne garder que la zone montagneuse
+    mountain_surface.blit(mask_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+    # Afficher la surface texturée sur la fenêtre principale
+    surface.blit(mountain_surface, (0, 0))
+
+    # Dessiner la ligne verte sur le sommet de la montagne
     top_line = [(x + scroll_x, y) for (x, y) in map_points]
-    pygame.draw.lines(win, GRASS_GREEN, False, top_line, 5)
+    pygame.draw.lines(surface, GRASS_GREEN, False, top_line, 5)
+
 
 def check_collision(rect, map_points):
     """
@@ -48,6 +74,7 @@ def check_collision(rect, map_points):
         if rect.clipline(p1, p2):
             return True, p1[1]
     return False, None
+
 
 class Ship:
     def __init__(self):
@@ -64,6 +91,7 @@ class Ship:
 
     def update(self):
         self.rect.center = (self.x + SHIP_WIDTH // 2, self.y + SHIP_HEIGHT // 2)
+
 
 def main():
     pygame.init()
@@ -82,6 +110,13 @@ def main():
 
     rocket_img = pygame.transform.scale(pygame.image.load(ROCKET_IMG), (SHIP_WIDTH, SHIP_HEIGHT))
     flame_img = pygame.transform.scale(pygame.image.load(FLAME_IMG), (25, 40))
+
+    # Chargement de la texture pour les montagnes (ancrée dans le monde)
+    try:
+        texture = pygame.image.load("assets/montagne.png").convert()
+    except Exception as e:
+        print("Erreur de chargement de la texture :", e)
+        texture = None
 
     # Chargement de la police "Retro Gaming"
     title_font = pygame.font.Font("assets/RetroGaming.ttf", 80)
@@ -104,18 +139,16 @@ def main():
     extend_threshold = 300
     segment_length = screen_width * 2
 
-    # Liste des arbres (pas de collisions)
+    # Liste des arbres (sans collisions)
     trees = []
 
     def place_trees():
         """
         Place aléatoirement des arbres sur la carte, sans collision.
-        Chaque arbre a un x aléatoire et on calcule sa hauteur
-        en fonction du relief.
+        Chaque arbre a un x aléatoire et on calcule sa hauteur en fonction du relief.
         """
         nonlocal trees
         trees = []
-        # Par exemple, un arbre tous les ~400-600 pixels
         x = map_start
         while x < map_end:
             x += random.randint(400, 600)
@@ -124,8 +157,7 @@ def main():
 
     def draw_trees(win, scroll_x):
         """
-        Dessine les arbres (un simple tronc rectangulaire + feuillage circulaire).
-        Pas de collisions.
+        Dessine les arbres (tronc rectangulaire + feuillage circulaire).
         """
         for tree in trees:
             tx = tree["x"] + scroll_x
@@ -137,19 +169,16 @@ def main():
 
     def init_game():
         nonlocal ship, map_points, map_start, map_end, scroll_x, landing_score, extend_threshold, segment_length, trees
-
         ship = Ship()
         map_start = -screen_width
         map_end = screen_width * 2
-        map_points = []
+        map_points.clear()
         map_points += generate_map_segment(map_start, map_end, screen_height)
         map_points = add_flat_surfaces(map_points, FLAT_WIDTH)
         scroll_x = 0
         landing_score = 0
         extend_threshold = 300
         segment_length = screen_width * 2
-
-        # On place les arbres après avoir généré la carte
         place_trees()
 
     running = True
@@ -186,19 +215,17 @@ def main():
             if keys[pygame.K_RETURN]:
                 init_game()
                 state = "playing"
-                pygame.time.delay(300)  # Pour éviter une action multiple involontaire
+                pygame.time.delay(300)
 
         elif state == "playing":
-            # Fond du ciel plus foncé
             win.fill(SKY_BLUE_DARK)
             keys = pygame.key.get_pressed()
 
-            # Contrôles de la fusée
+            # Contrôles du vaisseau
             if keys[pygame.K_UP] and ship.fuel > 0:
                 ship.velocity_x -= THRUST * math.sin(math.radians(ship.angle))
                 ship.velocity_y -= THRUST * math.cos(math.radians(ship.angle))
                 ship.fuel -= 1
-
             if keys[pygame.K_LEFT]:
                 ship.angle += ROTATION_SPEED
             if keys[pygame.K_RIGHT]:
@@ -209,10 +236,10 @@ def main():
             ship.y += ship.velocity_y
             ship.update()
 
-            # Calcul du décalage pour centrer la caméra sur la fusée
+            # Centrer la caméra sur le vaisseau
             scroll_x = screen_width // 2 - ship.rect.centerx
 
-            # Génération de nouveaux segments si nécessaire
+            # Génération de nouveaux segments de terrain
             view_left = ship.rect.centerx - screen_width // 2
             view_right = ship.rect.centerx + screen_width // 2
 
@@ -221,8 +248,7 @@ def main():
                 new_segment = add_flat_surfaces(new_segment, FLAT_WIDTH)
                 map_points.extend(new_segment)
                 map_end += segment_length
-                place_trees()  # On replace des arbres sur la nouvelle zone
-
+                place_trees()
             if view_left < map_start + extend_threshold:
                 new_segment = generate_map_segment(map_start - segment_length, map_start, screen_height)
                 new_segment = add_flat_surfaces(new_segment, FLAT_WIDTH)
@@ -236,13 +262,22 @@ def main():
                 landing_score = calculate_landing_score(ship.velocity_y, ship.angle)
                 state = "game_over"
 
-            # Dessin de la montagne (fond marron + simple ligne verte)
-            draw_mountain_map(win, map_points, scroll_x, screen_height)
+            # Dessin de la montagne avec texture si disponible,
+            # la texture est ancrée dans les coordonnées du monde grâce à scroll_x
+            if texture:
+                draw_textured_mountain_map(win, map_points, scroll_x, screen_height, texture)
+            else:
+                polygon_points = [(x + scroll_x, y) for (x, y) in map_points]
+                polygon_points.append((map_points[-1][0] + scroll_x, screen_height))
+                polygon_points.append((map_points[0][0] + scroll_x, screen_height))
+                pygame.draw.polygon(win, BROWN, polygon_points)
+                top_line = [(x + scroll_x, y) for (x, y) in map_points]
+                pygame.draw.lines(win, GRASS_GREEN, False, top_line, 5)
 
-            # Dessin des arbres (sans collision)
+            # Dessin des arbres
             draw_trees(win, scroll_x)
 
-            # Affichage de la fusée avec décalage
+            # Affichage du vaisseau
             rotated_rocket = pygame.transform.rotate(rocket_img, ship.angle)
             rocket_draw_rect = rotated_rocket.get_rect(center=(ship.rect.centerx + scroll_x, ship.rect.centery))
             win.blit(rotated_rocket, rocket_draw_rect)
@@ -255,18 +290,17 @@ def main():
                 rotated_flame = pygame.transform.rotate(flame_img, ship.angle)
                 win.blit(rotated_flame, rotated_flame.get_rect(center=flame_position))
 
-            # Affichage du carburant et de la vitesse (en km/h)
+            # Affichage du carburant et de la vitesse
             fuel_text = fuel_font.render(f"Carburant: {ship.fuel}", True, RED)
             win.blit(fuel_text, (10, 10))
-            speed_pixels = (ship.velocity_x**2 + ship.velocity_y**2) ** 0.5
-            speed_km_h = speed_pixels * 100  # Facteur de conversion (ajustable)
+            speed_pixels = (ship.velocity_x ** 2 + ship.velocity_y ** 2) ** 0.5
+            speed_km_h = speed_pixels * 100
             speed_text = fuel_font.render(f"Vitesse: {int(speed_km_h)} km/h", True, WHITE)
             win.blit(speed_text, (10, 40))
 
             pygame.display.update()
 
         elif state == "game_over":
-            # Écran de fin
             overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 128))
             win.blit(overlay, (0, 0))
@@ -292,6 +326,7 @@ def main():
                 pygame.time.delay(300)
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
