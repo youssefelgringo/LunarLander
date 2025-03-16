@@ -14,7 +14,7 @@ def build_executable():
     command = [
         "pyinstaller",
         "--onefile",          # Crée un seul fichier exécutable
-        "--windowed",         # Empêche l'ouverture d'une console (si jeu graphique)
+        "--windowed",         # Empêche l'ouverture d'une console
         "--add-data", "settings.py;.",  # Ajoute settings.py
         "main.py"             # Point d'entrée du jeu
     ]
@@ -24,7 +24,7 @@ def build_executable():
     subprocess.run([sys.executable, "-m", "PyInstaller"] + command[1:], shell=True)
 
     # Affiche l'emplacement du fichier final
-    exe_path = os.path.join("dist", "main.exe")
+    exe_path = os.path.join("dist", "LunarLander.exe")
     if os.path.exists(exe_path):
         print(f"Exécutable créé avec succès : {exe_path}")
     else:
